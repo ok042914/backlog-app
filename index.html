@@ -53,6 +53,27 @@
     .add-btn:hover { background: #5a52d5; }
     .add-btn:disabled { background: #aaa; cursor: not-allowed; }
 
+    .util-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .util-btn {
+      flex: 1;
+      padding: 9px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      color: #555;
+      transition: all 0.2s;
+    }
+    .util-btn:hover { background: #f5f5f5; }
+    .util-btn.close-btn { color: #e74c3c; border-color: #ffd0d0; }
+    .util-btn.close-btn:hover { background: #fff0f0; }
+
     .sort-row {
       display: flex;
       gap: 8px;
@@ -282,9 +303,14 @@
 <body>
   <div class="container">
     <h1>Project Backlog</h1>
-    <p class="subtitle">やりたいプロジェクトを管理する &nbsp;|&nbsp; v1.2.0</p>
+    <p class="subtitle">やりたいプロジェクトを管理する &nbsp;|&nbsp; v1.3.0</p>
 
     <button class="add-btn" id="add-btn" onclick="openModal()">+ 新しいプロジェクトを追加</button>
+
+    <div class="util-row">
+      <button class="util-btn" onclick="reload()">↻ リロード</button>
+      <button class="util-btn close-btn" onclick="window.close()">✕ 閉じる</button>
+    </div>
 
     <div class="sort-row">
       <button class="active" data-sort="created_at">追加順</button>
@@ -407,6 +433,12 @@
       `).join('');
 
       count.textContent = `全 ${projects.length} 件`;
+    }
+
+    async function reload() {
+      document.getElementById('backlog-list').innerHTML = '<p class="loading">読み込み中</p>';
+      await loadProjects();
+      showToast('リロードしました');
     }
 
     async function loadProjects() {
