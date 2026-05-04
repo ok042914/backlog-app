@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Project Backlog</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -35,7 +36,6 @@
       margin-bottom: 28px;
     }
 
-    /* Add button */
     .add-btn {
       display: block;
       width: 100%;
@@ -51,8 +51,8 @@
       transition: background 0.2s;
     }
     .add-btn:hover { background: #5a52d5; }
+    .add-btn:disabled { background: #aaa; cursor: not-allowed; }
 
-    /* Modal */
     .overlay {
       display: none;
       position: fixed;
@@ -81,9 +81,7 @@
       margin-bottom: 20px;
     }
 
-    .field {
-      margin-bottom: 16px;
-    }
+    .field { margin-bottom: 16px; }
     .field label {
       display: block;
       font-size: 12px;
@@ -131,18 +129,12 @@
       border: none;
       transition: background 0.2s;
     }
-    .btn-save {
-      background: #6c63ff;
-      color: #fff;
-    }
+    .btn-save { background: #6c63ff; color: #fff; }
     .btn-save:hover { background: #5a52d5; }
-    .btn-cancel {
-      background: #f0f0f0;
-      color: #555;
-    }
+    .btn-save:disabled { background: #aaa; cursor: not-allowed; }
+    .btn-cancel { background: #f0f0f0; color: #555; }
     .btn-cancel:hover { background: #e0e0e0; }
 
-    /* Cards */
     .backlog-list {
       display: flex;
       flex-direction: column;
@@ -167,8 +159,6 @@
       padding-top: 3px;
     }
 
-    .card-body {}
-
     .card-name {
       font-size: 16px;
       font-weight: 600;
@@ -189,24 +179,14 @@
       padding: 3px 8px;
       border-radius: 20px;
     }
-    .badge-difficulty {
-      background: #eee;
-      color: #555;
-    }
+    .badge-difficulty { background: #eee; color: #555; }
     .badge-priority-A { background: #ffeaea; color: #e74c3c; }
     .badge-priority-B { background: #fff3e0; color: #f39c12; }
     .badge-priority-C { background: #e8f5e9; color: #27ae60; }
 
-    .card-memo {
-      font-size: 13px;
-      color: #888;
-      line-height: 1.5;
-    }
+    .card-memo { font-size: 13px; color: #888; line-height: 1.5; }
 
-    .card-actions {
-      display: flex;
-      gap: 6px;
-    }
+    .card-actions { display: flex; gap: 6px; }
     .icon-btn {
       background: none;
       border: none;
@@ -234,8 +214,44 @@
       margin-top: 20px;
     }
 
-    /* Stars for difficulty */
     .stars { color: #f39c12; font-size: 12px; }
+
+    .loading {
+      text-align: center;
+      color: #aaa;
+      font-size: 14px;
+      padding: 60px 0;
+    }
+    .loading::after {
+      content: '';
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border: 2px solid #ddd;
+      border-top-color: #6c63ff;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #333;
+      color: #fff;
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+      z-index: 999;
+    }
+    .toast.show { opacity: 1; }
   </style>
 </head>
 <body>
@@ -243,13 +259,14 @@
     <h1>Project Backlog</h1>
     <p class="subtitle">やりたいプロジェクトを管理する</p>
 
-    <button class="add-btn" onclick="openModal()">+ 新しいプロジェクトを追加</button>
+    <button class="add-btn" id="add-btn" onclick="openModal()">+ 新しいプロジェクトを追加</button>
 
-    <div class="backlog-list" id="backlog-list"></div>
+    <div class="backlog-list" id="backlog-list">
+      <p class="loading">読み込み中</p>
+    </div>
     <p class="footer-count" id="footer-count"></p>
   </div>
 
-  <!-- Modal -->
   <div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
     <div class="modal">
       <h2 id="modal-title">プロジェクトを追加</h2>
@@ -288,25 +305,33 @@
 
       <div class="modal-actions">
         <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
-        <button class="btn-save" onclick="save()">保存する</button>
+        <button class="btn-save" id="save-btn" onclick="save()">保存する</button>
       </div>
     </div>
   </div>
 
+  <div class="toast" id="toast"></div>
+
   <script>
-    let projects = JSON.parse(localStorage.getItem('backlog') || '[]');
+    const SUPABASE_URL = 'https://tleexykarkkkklsgpihy.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsZWV4eWthcmtra2tsc2dwaWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NTE3OTUsImV4cCI6MjA5MzQyNzc5NX0.SjFgki89K-r5B8IZUJBNFs1HBZIQDE1MB8yscIIarsA';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    function persist() {
-      localStorage.setItem('backlog', JSON.stringify(projects));
-    }
+    let projects = [];
 
-    function nextId() {
-      const max = projects.reduce((m, p) => Math.max(m, p.id), 0);
-      return max + 1;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      setTimeout(() => t.classList.remove('show'), 2500);
     }
 
     function stars(n) {
       return '★'.repeat(n) + '☆'.repeat(5 - n);
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
     function render() {
@@ -340,8 +365,18 @@
       count.textContent = `全 ${projects.length} 件`;
     }
 
-    function escHtml(str) {
-      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    async function loadProjects() {
+      const { data, error } = await db
+        .from('backlog')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        document.getElementById('backlog-list').innerHTML = '<p class="empty">データの読み込みに失敗しました</p>';
+        return;
+      }
+      projects = data;
+      render();
     }
 
     function openModal(id) {
@@ -373,34 +408,42 @@
       if (e.target === document.getElementById('overlay')) closeModal();
     }
 
-    function save() {
+    async function save() {
       const name = document.getElementById('f-name').value.trim();
-      if (!name) {
-        document.getElementById('f-name').focus();
-        return;
-      }
+      if (!name) { document.getElementById('f-name').focus(); return; }
+
       const difficulty = parseInt(document.getElementById('f-difficulty').value);
       const priority = document.getElementById('f-priority').value;
       const memo = document.getElementById('f-memo').value.trim();
       const editId = document.getElementById('edit-id').value;
+      const btn = document.getElementById('save-btn');
 
+      btn.disabled = true;
+      btn.textContent = '保存中…';
+
+      let error;
       if (editId) {
-        const p = projects.find(p => p.id === parseInt(editId));
-        Object.assign(p, { name, difficulty, priority, memo });
+        ({ error } = await db.from('backlog').update({ name, difficulty, priority, memo }).eq('id', parseInt(editId)));
       } else {
-        projects.unshift({ id: nextId(), name, difficulty, priority, memo });
+        ({ error } = await db.from('backlog').insert({ name, difficulty, priority, memo }));
       }
 
-      persist();
-      render();
+      btn.disabled = false;
+      btn.textContent = '保存する';
+
+      if (error) { showToast('保存に失敗しました'); return; }
+
       closeModal();
+      showToast(editId ? '更新しました' : '追加しました');
+      await loadProjects();
     }
 
-    function remove(id) {
+    async function remove(id) {
       if (!confirm('このプロジェクトを削除しますか？')) return;
-      projects = projects.filter(p => p.id !== id);
-      persist();
-      render();
+      const { error } = await db.from('backlog').delete().eq('id', id);
+      if (error) { showToast('削除に失敗しました'); return; }
+      showToast('削除しました');
+      await loadProjects();
     }
 
     document.addEventListener('keydown', e => {
@@ -410,7 +453,7 @@
       }
     });
 
-    render();
+    loadProjects();
   </script>
 </body>
 </html>
