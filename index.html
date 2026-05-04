@@ -47,11 +47,36 @@
       font-size: 15px;
       font-weight: 600;
       cursor: pointer;
-      margin-bottom: 20px;
+      margin-bottom: 12px;
       transition: background 0.2s;
     }
     .add-btn:hover { background: #5a52d5; }
     .add-btn:disabled { background: #aaa; cursor: not-allowed; }
+
+    .sort-row {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+
+    .sort-row button {
+      flex: 1;
+      padding: 8px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      background: #fff;
+      font-size: 13px;
+      cursor: pointer;
+      color: #555;
+      transition: all 0.2s;
+    }
+
+    .sort-row button.active {
+      background: #6c63ff;
+      border-color: #6c63ff;
+      color: #fff;
+      font-weight: 600;
+    }
 
     .overlay {
       display: none;
@@ -257,9 +282,15 @@
 <body>
   <div class="container">
     <h1>Project Backlog</h1>
-    <p class="subtitle">やりたいプロジェクトを管理する</p>
+    <p class="subtitle">やりたいプロジェクトを管理する &nbsp;|&nbsp; v1.2.0</p>
 
     <button class="add-btn" id="add-btn" onclick="openModal()">+ 新しいプロジェクトを追加</button>
+
+    <div class="sort-row">
+      <button class="active" data-sort="created_at">追加順</button>
+      <button data-sort="difficulty">難易度順</button>
+      <button data-sort="priority">やりたい度順</button>
+    </div>
 
     <div class="backlog-list" id="backlog-list">
       <p class="loading">読み込み中</p>
@@ -317,7 +348,10 @@
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsZWV4eWthcmtra2tsc2dwaWh5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc4NTE3OTUsImV4cCI6MjA5MzQyNzc5NX0.SjFgki89K-r5B8IZUJBNFs1HBZIQDE1MB8yscIIarsA';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+    const PRIORITY_ORDER = { A: 1, B: 2, C: 3 };
+
     let projects = [];
+    let sortKey = 'created_at';
 
     function showToast(msg) {
       const t = document.getElementById('toast');
@@ -334,6 +368,16 @@
       return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
     }
 
+    function sorted(list) {
+      const copy = [...list];
+      if (sortKey === 'difficulty') {
+        copy.sort((a, b) => a.difficulty - b.difficulty || new Date(b.created_at) - new Date(a.created_at));
+      } else if (sortKey === 'priority') {
+        copy.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] || new Date(b.created_at) - new Date(a.created_at));
+      }
+      return copy;
+    }
+
     function render() {
       const list = document.getElementById('backlog-list');
       const count = document.getElementById('footer-count');
@@ -344,7 +388,7 @@
         return;
       }
 
-      list.innerHTML = projects.map(p => `
+      list.innerHTML = sorted(projects).map(p => `
         <div class="card">
           <div class="card-id">#${String(p.id).padStart(3,'0')}</div>
           <div class="card-body">
@@ -445,6 +489,15 @@
       showToast('削除しました');
       await loadProjects();
     }
+
+    document.querySelectorAll('.sort-row button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        sortKey = btn.dataset.sort;
+        document.querySelectorAll('.sort-row button').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        render();
+      });
+    });
 
     document.addEventListener('keydown', e => {
       if (e.key === 'Escape') closeModal();
