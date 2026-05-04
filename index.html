@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Project Backlog</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      min-height: 100vh;
+      padding: 40px 16px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a2e;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      text-align: center;
+      font-size: 12px;
+      color: #aaa;
+      margin-bottom: 28px;
+    }
+
+    /* Add button */
+    .add-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      background: #6c63ff;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-bottom: 20px;
+      transition: background 0.2s;
+    }
+    .add-btn:hover { background: #5a52d5; }
+
+    /* Modal */
+    .overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 14px;
+      padding: 28px;
+      width: 100%;
+      max-width: 480px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    }
+
+    .modal h2 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 20px;
+    }
+
+    .field {
+      margin-bottom: 16px;
+    }
+    .field label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: #777;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .field input,
+    .field select,
+    .field textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .field input:focus,
+    .field select:focus,
+    .field textarea:focus { border-color: #6c63ff; }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    .field-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 24px;
+    }
+    .modal-actions button {
+      flex: 1;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.2s;
+    }
+    .btn-save {
+      background: #6c63ff;
+      color: #fff;
+    }
+    .btn-save:hover { background: #5a52d5; }
+    .btn-cancel {
+      background: #f0f0f0;
+      color: #555;
+    }
+    .btn-cancel:hover { background: #e0e0e0; }
+
+    /* Cards */
+    .backlog-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 18px 20px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: grid;
+      grid-template-columns: 40px 1fr auto;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .card-id {
+      font-size: 11px;
+      font-weight: 700;
+      color: #aaa;
+      padding-top: 3px;
+    }
+
+    .card-body {}
+
+    .card-name {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a2e;
+      margin-bottom: 6px;
+    }
+
+    .card-meta {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+    }
+    .badge-difficulty {
+      background: #eee;
+      color: #555;
+    }
+    .badge-priority-A { background: #ffeaea; color: #e74c3c; }
+    .badge-priority-B { background: #fff3e0; color: #f39c12; }
+    .badge-priority-C { background: #e8f5e9; color: #27ae60; }
+
+    .card-memo {
+      font-size: 13px;
+      color: #888;
+      line-height: 1.5;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 6px;
+    }
+    .icon-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 6px 8px;
+      border-radius: 6px;
+      font-size: 15px;
+      color: #bbb;
+      transition: all 0.2s;
+    }
+    .icon-btn:hover { background: #f5f5f5; color: #555; }
+    .icon-btn.del:hover { background: #fff0f0; color: #e74c3c; }
+
+    .empty {
+      text-align: center;
+      color: #bbb;
+      font-size: 14px;
+      padding: 60px 0;
+    }
+
+    .footer-count {
+      text-align: center;
+      font-size: 13px;
+      color: #bbb;
+      margin-top: 20px;
+    }
+
+    /* Stars for difficulty */
+    .stars { color: #f39c12; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Project Backlog</h1>
+    <p class="subtitle">やりたいプロジェクトを管理する</p>
+
+    <button class="add-btn" onclick="openModal()">+ 新しいプロジェクトを追加</button>
+
+    <div class="backlog-list" id="backlog-list"></div>
+    <p class="footer-count" id="footer-count"></p>
+  </div>
+
+  <!-- Modal -->
+  <div class="overlay" id="overlay" onclick="handleOverlayClick(event)">
+    <div class="modal">
+      <h2 id="modal-title">プロジェクトを追加</h2>
+      <input type="hidden" id="edit-id">
+
+      <div class="field">
+        <label>プロジェクト名</label>
+        <input type="text" id="f-name" placeholder="例：ポートフォリオサイト" maxlength="100">
+      </div>
+
+      <div class="field-row">
+        <div class="field">
+          <label>想定難易度（1〜5）</label>
+          <select id="f-difficulty">
+            <option value="1">1 ― 簡単</option>
+            <option value="2" selected>2 ― やや易しい</option>
+            <option value="3">3 ― 普通</option>
+            <option value="4">4 ― 難しい</option>
+            <option value="5">5 ― 超難しい</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>やりたい度</label>
+          <select id="f-priority">
+            <option value="A">A ― 絶対やる</option>
+            <option value="B" selected>B ― やりたい</option>
+            <option value="C">C ― いつかやる</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>内容メモ</label>
+        <textarea id="f-memo" placeholder="どんなものを作りたいか、メモしておこう"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal()">キャンセル</button>
+        <button class="btn-save" onclick="save()">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let projects = JSON.parse(localStorage.getItem('backlog') || '[]');
+
+    function persist() {
+      localStorage.setItem('backlog', JSON.stringify(projects));
+    }
+
+    function nextId() {
+      const max = projects.reduce((m, p) => Math.max(m, p.id), 0);
+      return max + 1;
+    }
+
+    function stars(n) {
+      return '★'.repeat(n) + '☆'.repeat(5 - n);
+    }
+
+    function render() {
+      const list = document.getElementById('backlog-list');
+      const count = document.getElementById('footer-count');
+
+      if (projects.length === 0) {
+        list.innerHTML = '<p class="empty">プロジェクトがまだありません。<br>上のボタンから追加してみよう！</p>';
+        count.textContent = '';
+        return;
+      }
+
+      list.innerHTML = projects.map(p => `
+        <div class="card">
+          <div class="card-id">#${String(p.id).padStart(3,'0')}</div>
+          <div class="card-body">
+            <div class="card-name">${escHtml(p.name)}</div>
+            <div class="card-meta">
+              <span class="badge badge-difficulty"><span class="stars">${stars(p.difficulty)}</span> ${p.difficulty}/5</span>
+              <span class="badge badge-priority-${p.priority}">やりたい度 ${p.priority}</span>
+            </div>
+            ${p.memo ? `<div class="card-memo">${escHtml(p.memo)}</div>` : ''}
+          </div>
+          <div class="card-actions">
+            <button class="icon-btn" onclick="openModal(${p.id})" title="編集">✏️</button>
+            <button class="icon-btn del" onclick="remove(${p.id})" title="削除">🗑</button>
+          </div>
+        </div>
+      `).join('');
+
+      count.textContent = `全 ${projects.length} 件`;
+    }
+
+    function escHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function openModal(id) {
+      document.getElementById('overlay').classList.add('open');
+      if (id) {
+        const p = projects.find(p => p.id === id);
+        document.getElementById('modal-title').textContent = 'プロジェクトを編集';
+        document.getElementById('edit-id').value = id;
+        document.getElementById('f-name').value = p.name;
+        document.getElementById('f-difficulty').value = p.difficulty;
+        document.getElementById('f-priority').value = p.priority;
+        document.getElementById('f-memo').value = p.memo || '';
+      } else {
+        document.getElementById('modal-title').textContent = 'プロジェクトを追加';
+        document.getElementById('edit-id').value = '';
+        document.getElementById('f-name').value = '';
+        document.getElementById('f-difficulty').value = '2';
+        document.getElementById('f-priority').value = 'B';
+        document.getElementById('f-memo').value = '';
+      }
+      document.getElementById('f-name').focus();
+    }
+
+    function closeModal() {
+      document.getElementById('overlay').classList.remove('open');
+    }
+
+    function handleOverlayClick(e) {
+      if (e.target === document.getElementById('overlay')) closeModal();
+    }
+
+    function save() {
+      const name = document.getElementById('f-name').value.trim();
+      if (!name) {
+        document.getElementById('f-name').focus();
+        return;
+      }
+      const difficulty = parseInt(document.getElementById('f-difficulty').value);
+      const priority = document.getElementById('f-priority').value;
+      const memo = document.getElementById('f-memo').value.trim();
+      const editId = document.getElementById('edit-id').value;
+
+      if (editId) {
+        const p = projects.find(p => p.id === parseInt(editId));
+        Object.assign(p, { name, difficulty, priority, memo });
+      } else {
+        projects.unshift({ id: nextId(), name, difficulty, priority, memo });
+      }
+
+      persist();
+      render();
+      closeModal();
+    }
+
+    function remove(id) {
+      if (!confirm('このプロジェクトを削除しますか？')) return;
+      projects = projects.filter(p => p.id !== id);
+      persist();
+      render();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeModal();
+      if (e.key === 'Enter' && document.getElementById('overlay').classList.contains('open')) {
+        if (document.activeElement.tagName !== 'TEXTAREA') save();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>
